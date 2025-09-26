@@ -275,13 +275,15 @@ struct HomeView: View {
                         .buttonStyle(.bordered)
                         .tint(.red)
                         
-                        // DEBUG: Force creature to have enough XP
+                        // DEBUG: Force creature to have enough XP for next evolution
                         Button(action: {
                             if var current = ActiveCreatureStorage.shared.load() {
-                                current.experiencePoints = 1 // Force to have enough XP for first evolution
+                                // Give enough XP for the next evolution stage
+                                let nextStageThreshold = current.stage < 3 ? Creature.evolutionThresholds[current.stage + 1] : 19
+                                current.experiencePoints = nextStageThreshold
                                 ActiveCreatureStorage.shared.save(current)
                                 loadCreature()
-                                print("DEBUG: Forced creature XP to 1")
+                                print("DEBUG: Forced creature XP to \(nextStageThreshold) for stage \(current.stage)")
                             }
                         }) {
                             Text("Force XP").font(.subheadline)
