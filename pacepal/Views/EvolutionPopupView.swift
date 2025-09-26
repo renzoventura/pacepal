@@ -10,6 +10,22 @@ struct EvolutionPopupView: View {
     @State private var animationOpacity: Double = 0.0
     @State private var showSparkles = false
     
+    private var evolutionTitle: String {
+        if oldStage == 0 && newStage == 1 {
+            return "🥚 Your Egg Has Hatched! 🐣"
+        } else {
+            return "🎉 Evolution Complete! 🎉"
+        }
+    }
+    
+    private var evolutionMessage: String {
+        if oldStage == 0 && newStage == 1 {
+            return "Your little creature has hatched from its egg!"
+        } else {
+            return "Your pet has evolved!"
+        }
+    }
+    
     var body: some View {
         ZStack {
             Color.black.opacity(0.7)
@@ -35,13 +51,13 @@ struct EvolutionPopupView: View {
                 
                 // Evolution Message
                 VStack(spacing: 12) {
-                    Text("🎉 Evolution Complete! 🎉")
+                    Text(evolutionTitle)
                         .font(.title2)
                         .fontWeight(.bold)
                         .foregroundColor(.white)
                         .multilineTextAlignment(.center)
                     
-                    Text("Your pet has evolved!")
+                    Text(evolutionMessage)
                         .font(.headline)
                         .foregroundColor(.white.opacity(0.9))
                         .multilineTextAlignment(.center)

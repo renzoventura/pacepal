@@ -70,9 +70,9 @@ struct HomeView: View {
                                 .foregroundColor(.black)
                         }
                         
-                        // Happiness Bar (used as Experience)
+                        // Experience Bar
                         VStack(spacing: 8) {
-                            Text("Happiness")
+                            Text("Experience")
                                 .font(.headline)
                                 .foregroundColor(.black)
                             
@@ -91,7 +91,7 @@ struct HomeView: View {
                             .frame(width: 200)
                             
                             HStack {
-                                Text("\(creature?.currentStageXP ?? 0)/\(creature?.maxStageXP ?? 1) Happiness")
+                                Text("\(creature?.currentStageXP ?? 0)/\(creature?.maxStageXP ?? 1) XP")
                                     .font(.caption)
                                     .foregroundColor(.black.opacity(0.7))
                                 
@@ -142,6 +142,16 @@ struct HomeView: View {
                                         .font(.title2)
                                         .fontWeight(.bold)
                                         .foregroundColor(.pacePalOrange)
+                                }
+                                
+                                VStack(spacing: 4) {
+                                    Text("Experience")
+                                        .font(.caption)
+                                        .foregroundColor(.black.opacity(0.7))
+                                    Text("\(creature?.experiencePoints ?? 0)")
+                                        .font(.title2)
+                                        .fontWeight(.bold)
+                                        .foregroundColor(.blue)
                                 }
                             }
                         }
@@ -232,10 +242,18 @@ struct HomeView: View {
             StatsView(stats: store.stats)
         }
         .sheet(isPresented: $showCoupons) {
-            CouponView()
-                .onDisappear {
-                    refreshAfterCouponRedemption()
+            CouponView(onSuccessDismiss: {
+                // Check for evolution after success popup is dismissed
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                    if let evolutionData = ActiveCreatureStorage.shared.getEvolutionInfo() {
+                        evolutionInfo = evolutionData
+                        showEvolutionPopup = true
+                    }
                 }
+            })
+            .onDisappear {
+                refreshAfterCouponRedemption()
+            }
         }
             .sheet(isPresented: $showStore) {
                 StoreView()
@@ -253,6 +271,8 @@ struct HomeView: View {
                         onDismiss: {
                             showEvolutionPopup = false
                             self.evolutionInfo = nil
+                            // Refresh creature data to show updated stage
+                            loadCreature()
                         }
                     )
                 }

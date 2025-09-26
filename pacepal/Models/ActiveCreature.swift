@@ -5,12 +5,14 @@ struct Creature: Codable, Identifiable, Equatable {
     var stage: Int // 0 = Egg, 1 = Baby, 2 = Teen, 3 = Adult
     var runPoints: Int
     var kmCurrency: Double
-    var happiness: Int // Used as experience for evolution
+    var happiness: Int // Used for creature mood/display
+    var experiencePoints: Int // Used for evolution
     var weekStart: Date
     var weekEnd: Date
     
-    // Evolution thresholds
-    static let evolutionThresholds = [0, 10, 30, 60] // Egg, Baby, Teen, Adult
+    // Evolution thresholds based on XP
+    // Egg → Baby: 1 XP, Baby → Teen: 3 runs (3 XP), Teen → Adult: 5 runs (5 XP), Adult: 10 runs (10 XP)
+    static let evolutionThresholds = [0, 1, 4, 9] // Egg(0), Baby(1), Teen(4), Adult(9)
     static let stageNames = [0: "Egg", 1: "Baby", 2: "Teen", 3: "Adult"]
     
     var stageName: String {
@@ -34,7 +36,7 @@ struct Creature: Codable, Identifiable, Equatable {
     }
     
     var currentStageXP: Int {
-        return happiness - (stage > 0 ? Self.evolutionThresholds[stage] : 0)
+        return experiencePoints - (stage > 0 ? Self.evolutionThresholds[stage] : 0)
     }
     
     var maxStageXP: Int {
@@ -42,7 +44,7 @@ struct Creature: Codable, Identifiable, Equatable {
     }
     
     var canEvolve: Bool {
-        return stage < 3 && happiness >= Self.evolutionThresholds[stage + 1]
+        return stage < 3 && experiencePoints >= Self.evolutionThresholds[stage + 1]
     }
 }
 
@@ -71,7 +73,7 @@ final class ActiveCreatureStorage {
             let cal = Calendar.current
             let start = cal.startOfDay(for: now)
             let end = cal.date(byAdding: .day, value: 7, to: start) ?? now.addingTimeInterval(7*86400)
-            let creature = Creature(id: UUID().uuidString, stage: 0, runPoints: 0, kmCurrency: 0, happiness: 0, weekStart: start, weekEnd: end)
+            let creature = Creature(id: UUID().uuidString, stage: 0, runPoints: 0, kmCurrency: 0, happiness: 0, experiencePoints: 0, weekStart: start, weekEnd: end)
             save(creature)
         }
     }
@@ -84,31 +86,44 @@ final class ActiveCreatureStorage {
             let cal = Calendar.current
             let start = cal.startOfDay(for: now)
             let end = cal.date(byAdding: .day, value: 7, to: start) ?? now.addingTimeInterval(7*86400)
-            let newCreature = Creature(id: UUID().uuidString, stage: 0, runPoints: 0, kmCurrency: current.kmCurrency, happiness: 0, weekStart: start, weekEnd: end)
+            let newCreature = Creature(id: UUID().uuidString, stage: 0, runPoints: 0, kmCurrency: current.kmCurrency, happiness: 0, experiencePoints: 0, weekStart: start, weekEnd: end)
             save(newCreature)
         }
     }
 
-    // Apply effects for a redeemed run: +1 runPoint, +distance km currency
-    func applyRedeemedRun(distanceKm: Double) {
+    // Apply effects for a redeemed run: +1 runPoint, +distance km currency, +1 XP
+    func applyRedeemedRun(distanceKm: Double) -> Bool {
         ensureExists()
         resetWeekIfNeeded()
-        guard var current = load() else { return }
+        guard var current = load() else { return false }
+        
+        let oldStage = current.stage
         current.runPoints += 1
         current.kmCurrency += max(0, distanceKm)
+        // Earn 1 XP for redeeming a run
+        current.experiencePoints += 1
         // Happiness boost on redeem
         current.happiness = min(100, current.happiness + 5)
+        
+        // Check for evolution
+        var didEvolve = false
+        while current.canEvolve {
+            current.stage += 1
+            didEvolve = true
+        }
+        
         save(current)
+        return didEvolve
     }
     
-    // Feed the creature and gain happiness (used as experience)
+    // Feed the creature and gain happiness
     func feedCreature(happinessGained: Int) -> Bool {
         guard var current = load() else { return false }
         
-        // Add happiness (used as experience)
+        // Add happiness
         current.happiness += happinessGained
         
-        // Check for evolution
+        // Check for evolution based on XP
         var didEvolve = false
         while current.canEvolve {
             current.stage += 1

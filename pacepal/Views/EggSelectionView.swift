@@ -67,6 +67,7 @@ struct EggSelectionView: View {
             runPoints: 0,
             kmCurrency: 0,
             happiness: 0,
+            experiencePoints: 0,
             weekStart: start,
             weekEnd: end
         )

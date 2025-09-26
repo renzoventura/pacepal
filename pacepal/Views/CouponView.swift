@@ -2,6 +2,11 @@ import SwiftUI
 
 struct CouponView: View {
     @Environment(\.dismiss) private var dismiss
+    let onSuccessDismiss: (() -> Void)?
+    
+    init(onSuccessDismiss: (() -> Void)? = nil) {
+        self.onSuccessDismiss = onSuccessDismiss
+    }
     @State private var runs: [Run] = []
     @State private var isRedeemingAll = false
     @State private var showConfirmation = false
@@ -197,6 +202,7 @@ struct CouponView: View {
                         kmEarned: totalKMEarned,
                         onDismiss: {
                             showSuccess = false
+                            onSuccessDismiss?()
                             dismiss()
                         }
                     )
@@ -228,7 +234,7 @@ struct CouponView: View {
         
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             runs[idx].redeemed = true
-            ActiveCreatureStorage.shared.applyRedeemedRun(distanceKm: run.distance)
+            let didEvolve = ActiveCreatureStorage.shared.applyRedeemedRun(distanceKm: run.distance)
             save()
             
             // Set success data
@@ -236,6 +242,8 @@ struct CouponView: View {
             totalKMEarned = run.distance
             
             isRedeemingSingle = false
+            
+            // Always show success popup first
             showSuccess = true
         }
     }
@@ -246,10 +254,12 @@ struct CouponView: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             var pointsEarned = 0
             var kmEarned = 0.0
+            var didEvolve = false
             
             for (i, r) in runs.enumerated() where !runs[i].redeemed {
                 runs[i].redeemed = true
-                ActiveCreatureStorage.shared.applyRedeemedRun(distanceKm: r.distance)
+                let evolved = ActiveCreatureStorage.shared.applyRedeemedRun(distanceKm: r.distance)
+                if evolved { didEvolve = true }
                 pointsEarned += 1
                 kmEarned += r.distance
             }
@@ -260,6 +270,8 @@ struct CouponView: View {
             totalKMEarned = kmEarned
             
             isRedeemingAll = false
+            
+            // Always show success popup first
             showSuccess = true
         }
     }
