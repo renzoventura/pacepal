@@ -1,0 +1,592 @@
+import SwiftUI
+
+struct HomeView: View {
+    @StateObject private var store = AppStore()
+    @State private var creatureState = CreatureState(mood: .neutral, health: 0.5, growth: 0, lastActivityDate: nil)
+    @State private var isLoading = false
+    @State private var showLoadingView = false
+    @State private var showStatsView = false
+    @State private var showCoupons = false
+    @State private var showStore = false
+    @State private var showEggSelection = false
+    @State private var navigateToLogin = false
+    @State private var showMenu = false
+    @State private var errorMessage: String? = nil
+    @State private var opacity: Double = 0.0
+    @State private var inventory: [InventoryItem] = []
+    @State private var creature: Creature? = nil
+    @State private var bounceOffset: CGFloat = 0
+    @State private var showEvolutionPopup = false
+    @State private var evolutionInfo: (oldStage: Int, newStage: Int, stageName: String)? = nil
+
+    private var experienceBarWidth: CGFloat {
+        guard let creature = creature else { return 0 }
+        let progress = creature.maxStageXP > 0 ? CGFloat(creature.currentStageXP) / CGFloat(creature.maxStageXP) : 0
+        return min(200, max(0, progress * 200))
+    }
+
+    var body: some View {
+        ZStack {
+            Color.white
+                .ignoresSafeArea()
+            
+            ScrollView {
+                VStack(spacing: 24) {
+                    // Header
+                    HStack {
+                        Text("PacePal")
+                            .font(.system(size: 32, weight: .bold, design: .rounded))
+                            .foregroundColor(.pacePalOrange)
+                        
+                        Spacer()
+                        
+                        Button(action: { showMenu.toggle() }) {
+                            Image(systemName: "line.3.horizontal")
+                                .font(.title2)
+                                .foregroundColor(.pacePalOrange)
+                        }
+                    }
+                    .padding(.top, 20)
+                    
+
+                    // Creature Display
+                    VStack(spacing: 20) {
+                        // Creature Display
+                        VStack(spacing: 8) {
+                            Text(creature?.stageEmoji ?? "🥚")
+                                .font(.system(size: 80))
+                                .offset(y: bounceOffset)
+                                .animation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true), value: bounceOffset)
+                                .onAppear {
+                                    bounceOffset = -8
+                                    // Ensure creature is loaded when view appears
+                                    if creature == nil {
+                                        loadCreature()
+                                    }
+                                }
+                            
+                            Text(creature?.stageName ?? "Egg")
+                                .font(.headline)
+                                .foregroundColor(.black)
+                        }
+                        
+                        // Happiness Bar (used as Experience)
+                        VStack(spacing: 8) {
+                            Text("Happiness")
+                                .font(.headline)
+                                .foregroundColor(.black)
+                            
+                            ZStack(alignment: .leading) {
+                                Rectangle()
+                                    .fill(Color.pacePalOrange.opacity(0.3))
+                                    .frame(height: 8)
+                                    .cornerRadius(4)
+                                
+                                Rectangle()
+                                    .fill(Color.pacePalOrange)
+                                    .frame(width: experienceBarWidth, height: 8)
+                                    .cornerRadius(4)
+                                    .animation(.easeInOut(duration: 0.5), value: experienceBarWidth)
+                            }
+                            .frame(width: 200)
+                            
+                            HStack {
+                                Text("\(creature?.currentStageXP ?? 0)/\(creature?.maxStageXP ?? 1) Happiness")
+                                    .font(.caption)
+                                    .foregroundColor(.black.opacity(0.7))
+                                
+                                Spacer()
+                                
+                                Text(creature?.stageName ?? "Egg")
+                                    .font(.caption)
+                                    .foregroundColor(.pacePalOrange)
+                                    .fontWeight(.semibold)
+                            }
+                        }
+                        .padding()
+                        .background(Color.pacePalOrange.opacity(0.1))
+                        .cornerRadius(12)
+                        
+                        // Creature Stats
+                        VStack(spacing: 12) {
+                            Text("Creature Stats")
+                                .font(.headline)
+                                .foregroundColor(.black)
+                            
+                            HStack(spacing: 20) {
+                                VStack(spacing: 4) {
+                                    Text("Run Points")
+                                        .font(.caption)
+                                        .foregroundColor(.black.opacity(0.7))
+                                    Text("\(creature?.runPoints ?? 0)")
+                                        .font(.title2)
+                                        .fontWeight(.bold)
+                                        .foregroundColor(.pacePalOrange)
+                                }
+                                
+                                VStack(spacing: 4) {
+                                    Text("KM Currency")
+                                        .font(.caption)
+                                        .foregroundColor(.black.opacity(0.7))
+                                    Text(String(format: "%.1f", creature?.kmCurrency ?? 0.0))
+                                        .font(.title2)
+                                        .fontWeight(.bold)
+                                        .foregroundColor(.pacePalOrange)
+                                }
+                                
+                                VStack(spacing: 4) {
+                                    Text("Happiness")
+                                        .font(.caption)
+                                        .foregroundColor(.black.opacity(0.7))
+                                    Text("\(creature?.happiness ?? 0)")
+                                        .font(.title2)
+                                        .fontWeight(.bold)
+                                        .foregroundColor(.pacePalOrange)
+                                }
+                            }
+                        }
+                        .padding()
+                        .background(Color.pacePalOrange.opacity(0.1))
+                        .cornerRadius(12)
+                        
+                        // Inventory Display
+                        if !inventory.isEmpty {
+                            VStack(spacing: 12) {
+                                Text("Inventory")
+                                    .font(.headline)
+                                    .foregroundColor(.black)
+                                
+                                ScrollView(.horizontal, showsIndicators: false) {
+                                    HStack(spacing: 12) {
+                                        ForEach(inventory) { item in
+                                            InventoryItemView(item: item) {
+                                                feedCreature(item.foodItem)
+                                            }
+                                        }
+                                    }
+                                    .padding(.horizontal)
+                                }
+                            }
+                            .padding()
+                            .background(Color.pacePalOrange.opacity(0.1))
+                            .cornerRadius(12)
+                        }
+                    }
+
+                    if let errorMessage { 
+                        Text(errorMessage)
+                            .foregroundColor(.red)
+                            .font(.caption)
+                            .multilineTextAlignment(.center)
+                    }
+
+                    // Action Buttons
+                    HStack(spacing: 12) {
+                        Button(action: openCoupons) {
+                            Text("Redeem Runs").font(.subheadline)
+                        }
+                        .buttonStyle(.bordered)
+                        .tint(.pacePalOrange)
+
+                        Button(action: openStore) {
+                            Text("Store").font(.subheadline)
+                        }
+                        .buttonStyle(.bordered)
+                        .tint(.pacePalOrange)
+
+                        Button(action: showStats) {
+                            Text("View Details").font(.subheadline)
+                        }
+                        .buttonStyle(.bordered)
+                        .tint(.pacePalOrange)
+                    }
+
+                    if isLoading { 
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle(tint: .pacePalOrange))
+                    }
+
+                    Spacer(minLength: 100)
+                }
+                .padding(.horizontal, 24)
+            }
+            .refreshable {
+                await refreshStatsAsync()
+            }
+            .opacity(opacity)
+            .onAppear {
+                bootstrap()
+                loadInventory()
+                loadCreature()
+            }
+        }
+        .fullScreenCover(isPresented: $showLoadingView) {
+            LoadingView {
+                showLoadingView = false
+                withAnimation(.easeIn(duration: 1.0)) {
+                    opacity = 1.0
+                }
+            }
+        }
+        .sheet(isPresented: $showStatsView) {
+            StatsView(stats: store.stats)
+        }
+        .sheet(isPresented: $showCoupons) {
+            CouponView()
+                .onDisappear {
+                    refreshAfterCouponRedemption()
+                }
+        }
+            .sheet(isPresented: $showStore) {
+                StoreView()
+                    .onDisappear {
+                        loadInventory()
+                        creature = ActiveCreatureStorage.shared.load()
+                    }
+            }
+            .fullScreenCover(isPresented: $showEvolutionPopup) {
+                if let evolutionInfo = evolutionInfo {
+                    EvolutionPopupView(
+                        oldStage: evolutionInfo.oldStage,
+                        newStage: evolutionInfo.newStage,
+                        stageName: evolutionInfo.stageName,
+                        onDismiss: {
+                            showEvolutionPopup = false
+                            self.evolutionInfo = nil
+                        }
+                    )
+                }
+            }
+        .fullScreenCover(isPresented: $showEggSelection) {
+            EggSelectionView {
+                showEggSelection = false
+                // Continue with normal bootstrap after egg selection
+                continueBootstrap()
+                // Ensure creature is loaded after egg selection
+                loadCreature()
+            }
+        }
+        .fullScreenCover(isPresented: $navigateToLogin) {
+            LoginView()
+        }
+        .overlay(
+            // Hamburger Menu
+            Group {
+                if showMenu {
+                    Color.black.opacity(0.3)
+                        .ignoresSafeArea()
+                        .onTapGesture {
+                            showMenu = false
+                        }
+                    
+                    VStack(alignment: .trailing, spacing: 0) {
+                        Spacer()
+                        
+                        VStack(spacing: 0) {
+                            Button(action: {
+                                showMenu = false
+                                showStats()
+                            }) {
+                                HStack {
+                                    Image(systemName: "chart.bar")
+                                    Text("View Details")
+                                    Spacer()
+                                }
+                                .foregroundColor(.pacePalOrange)
+                                .padding()
+                                .background(Color.white)
+                            }
+                            
+                            Divider()
+                            
+                            Button(action: {
+                                showMenu = false
+                                logout()
+                            }) {
+                                HStack {
+                                    Image(systemName: "rectangle.portrait.and.arrow.right")
+                                    Text("Logout")
+                                    Spacer()
+                                }
+                                .foregroundColor(.red)
+                                .padding()
+                                .background(Color.white)
+                            }
+                            
+                            Divider()
+                            
+                            Button(action: {
+                                showMenu = false
+                                clearAllData()
+                            }) {
+                                HStack {
+                                    Image(systemName: "trash")
+                                    Text("Clear All Data (Debug)")
+                                    Spacer()
+                                }
+                                .foregroundColor(.red)
+                                .padding()
+                                .background(Color.white)
+                            }
+                        }
+                        .background(Color.white)
+                        .cornerRadius(12)
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 100)
+                    }
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                    .animation(.easeInOut(duration: 0.3), value: showMenu)
+                }
+            }
+        )
+    }
+    
+    private func statRow(_ title: String, _ value: String) -> some View {
+        HStack {
+            Text(title)
+                .foregroundColor(.white)
+                .font(.subheadline)
+            Spacer()
+            Text(value)
+                .foregroundColor(.white)
+                .font(.subheadline)
+                .fontWeight(.semibold)
+        }
+    }
+
+    private func bootstrap() {
+        store.isAuthenticated = true
+        
+        // Check if user has an active creature, if not show egg selection
+        if ActiveCreatureStorage.shared.load() == nil {
+            showEggSelection = true
+            return
+        }
+        
+        continueBootstrap()
+    }
+    
+    private func continueBootstrap() {
+        if let cached = StatsCache.shared.load() { 
+            store.stats = cached 
+        }
+        
+        // Load creature data
+        creature = ActiveCreatureStorage.shared.load()
+        
+        showLoadingView = true
+        fetchAndUpdate()
+    }
+
+    private func refreshStats() {
+        showLoadingView = true
+        fetchAndUpdate()
+    }
+    
+    private func refreshStatsAsync() async {
+        await withCheckedContinuation { continuation in
+            fetchAndUpdate()
+            // Simulate a small delay to show the refresh indicator
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                continuation.resume()
+            }
+        }
+    }
+    
+    private func openCoupons() {
+        isLoading = true
+        SyncService.shared.syncRuns { result in
+            DispatchQueue.main.async {
+                isLoading = false
+                switch result {
+                case .success:
+                    showCoupons = true
+                case .failure(let error):
+                    errorMessage = "Failed to sync runs: \(error.localizedDescription)"
+                }
+            }
+        }
+    }
+
+    private func openStore() {
+        showStore = true
+    }
+    
+    private func showStats() {
+        showStatsView = true
+    }
+    
+    private func loadInventory() {
+        inventory = InventoryStorage.shared.loadInventory()
+    }
+    
+    private func loadCreature() {
+        creature = ActiveCreatureStorage.shared.load()
+    }
+    
+    private func refreshAfterCouponRedemption() {
+        // Refresh inventory in case any items were purchased
+        loadInventory()
+        
+        // Refresh creature stats to show updated run points and KM currency
+        creature = ActiveCreatureStorage.shared.load()
+    }
+    
+    private func feedCreature(_ foodItem: FoodItem) {
+        guard let creature = ActiveCreatureStorage.shared.load() else { return }
+        
+        // Feed creature and check for evolution
+        let didEvolve = ActiveCreatureStorage.shared.feedCreature(happinessGained: foodItem.happinessEffect)
+        
+        // Update local creature state
+        self.creature = ActiveCreatureStorage.shared.load()
+        
+        // Remove item from inventory
+        InventoryStorage.shared.removeItem(foodItem)
+        
+        // Reload inventory
+        loadInventory()
+        
+        if didEvolve {
+            // Show evolution popup
+            if let evolutionData = ActiveCreatureStorage.shared.getEvolutionInfo() {
+                evolutionInfo = evolutionData
+                showEvolutionPopup = true
+            }
+        } else {
+            // Show regular feedback
+            errorMessage = "Fed \(foodItem.emoji) \(foodItem.name)! +\(foodItem.happinessEffect) Happiness"
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                errorMessage = nil
+            }
+        }
+    }
+    
+    private func logout() {
+        StravaAuthService.shared.logout()
+        store.isAuthenticated = false
+        store.stats = nil
+        creatureState = CreatureState(mood: .neutral, health: 0.5, growth: 0, lastActivityDate: nil)
+        
+        withAnimation(.easeOut(duration: 0.8)) {
+            opacity = 0.0
+        }
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+            navigateToLogin = true
+        }
+    }
+    
+    private func clearAllData() {
+        StravaAuthService.shared.clearAllData()
+        store.isAuthenticated = false
+        store.stats = nil
+        creatureState = CreatureState(mood: .neutral, health: 0.5, growth: 0, lastActivityDate: nil)
+        
+        withAnimation(.easeOut(duration: 0.8)) {
+            opacity = 0.0
+        }
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+            navigateToLogin = true
+        }
+    }
+
+    private func fetchAndUpdate() {
+        isLoading = true
+        errorMessage = nil
+        
+        StravaAuthService.shared.getAccessToken { tokenResult in
+            switch tokenResult {
+            case .failure(let error):
+                DispatchQueue.main.async {
+                    isLoading = false
+                    showLoadingView = false
+                    errorMessage = error.localizedDescription
+                }
+            case .success(let token):
+                StravaAPIClient.shared.fetchRecentActivities(accessToken: token) { activitiesResult in
+                    DispatchQueue.main.async {
+                        isLoading = false
+                        switch activitiesResult {
+                        case .failure(let error):
+                            showLoadingView = false
+                            errorMessage = error.localizedDescription
+                        case .success(let activities):
+                            let weekDistance = activities.filter { $0.startDate > Date().addingTimeInterval(-7 * 86400) }.map { $0.distance }.reduce(0, +)
+                            let totalDistance = activities.map { $0.distance }.reduce(0, +)
+                            let totalTime = activities.map { $0.movingTime }.reduce(0, +)
+                            let calories = totalDistance * 0.06 // rough placeholder kcal/m
+                            let newStats = StravaStats(totalDistanceMeters: totalDistance, totalActivities: activities.count, totalMovingTimeSeconds: totalTime, calories: calories, weekDistanceMeters: weekDistance, lastSync: Date())
+                            store.stats = newStats
+                            StatsCache.shared.save(newStats)
+                            creatureState = CreatureEngine.evaluateState(from: activities)
+                            // LoadingView will automatically dismiss after its sequence completes
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func formatDistance(_ meters: Double) -> String {
+        let km = meters / 1000.0
+        return String(format: "%.1f km", km)
+    }
+    
+    private func formatTime(_ seconds: Int) -> String {
+        let hours = seconds / 3600
+        let minutes = (seconds % 3600) / 60
+        if hours > 0 {
+            return String(format: "%dh %dm", hours, minutes)
+        } else {
+            return String(format: "%dm", minutes)
+        }
+    }
+    
+    private func formatLocalTime(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.timeZone = TimeZone.current
+//        formatter.dateStyle = DateFormatter.Style.abbreviated
+        formatter.timeStyle = DateFormatter.Style.short
+        return formatter.string(from: date)
+    }
+}
+
+struct InventoryItemView: View {
+    let item: InventoryItem
+    let onFeed: () -> Void
+    
+    var body: some View {
+        VStack(spacing: 8) {
+            Text(item.foodItem.emoji)
+                .font(.system(size: 30))
+            
+            Text(item.foodItem.name)
+                .font(.caption)
+                .foregroundColor(.black)
+                .multilineTextAlignment(.center)
+            
+            Text("x\(item.quantity)")
+                .font(.caption2)
+                .foregroundColor(.black.opacity(0.7))
+            
+            Button("Feed") {
+                onFeed()
+            }
+            .buttonStyle(.bordered)
+            .tint(.pacePalOrange)
+            .font(.caption)
+        }
+        .padding(8)
+        .background(Color.pacePalOrange.opacity(0.1))
+        .cornerRadius(8)
+        .frame(width: 80)
+    }
+}
+
+#Preview {
+    HomeView()
+}
+
+
