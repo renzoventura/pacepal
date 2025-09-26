@@ -18,11 +18,199 @@ struct HomeView: View {
     @State private var bounceOffset: CGFloat = 0
     @State private var showEvolutionPopup = false
     @State private var evolutionInfo: (oldStage: Int, newStage: Int, stageName: String)? = nil
+    @State private var pendingEvolution = false
+    @State private var tempExperiencePoints: Int? = nil
+    @State private var showEvolutionNotification = false
 
     private var experienceBarWidth: CGFloat {
         guard let creature = creature else { return 0 }
-        let progress = creature.maxStageXP > 0 ? CGFloat(creature.currentStageXP) / CGFloat(creature.maxStageXP) : 0
+        
+        // Use temporary experience points if there's a pending evolution
+        let currentXP = tempExperiencePoints ?? creature.experiencePoints
+        let currentStageXP = currentXP - (creature.stage > 0 ? Creature.evolutionThresholds[creature.stage] : 0)
+        let maxStageXP = creature.stage < 3 ? Creature.evolutionThresholds[creature.stage + 1] - Creature.evolutionThresholds[creature.stage] : 1
+        
+        let progress = maxStageXP > 0 ? CGFloat(currentStageXP) / CGFloat(maxStageXP) : 0
         return min(200, max(0, progress * 200))
+    }
+    
+    private var currentStageXPDisplay: Int {
+        guard let creature = creature else { return 0 }
+        let currentXP = tempExperiencePoints ?? creature.experiencePoints
+        return currentXP - (creature.stage > 0 ? Creature.evolutionThresholds[creature.stage] : 0)
+    }
+    
+    private var maxStageXPDisplay: Int {
+        guard let creature = creature else { return 1 }
+        return creature.stage < 3 ? Creature.evolutionThresholds[creature.stage + 1] - Creature.evolutionThresholds[creature.stage] : 1
+    }
+    
+    private var headerView: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Welcome back!")
+                    .font(.title2)
+                    .fontWeight(.bold)
+                    .foregroundColor(.black)
+                
+                Text("Keep running to grow your creature!")
+                    .font(.subheadline)
+                    .foregroundColor(.black.opacity(0.7))
+            }
+            
+            Spacer()
+            
+            Button(action: { showMenu = true }) {
+                Image(systemName: "line.horizontal.3")
+                    .font(.title2)
+                    .foregroundColor(.pacePalOrange)
+            }
+        }
+        .padding(.horizontal, 24)
+        .padding(.top, 8)
+    }
+    
+    private var creatureDisplayView: some View {
+        VStack(spacing: 20) {
+            // Creature Display
+            VStack(spacing: 8) {
+                Text(creature?.stageEmoji ?? "🥚")
+                    .font(.system(size: 80))
+                    .offset(y: bounceOffset)
+                    .animation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true), value: bounceOffset)
+                    .onAppear {
+                        bounceOffset = -8
+                        // Ensure creature is loaded when view appears
+                        if creature == nil {
+                            loadCreature()
+                        }
+                    }
+                
+                Text(creature?.stageName ?? "Egg")
+                    .font(.headline)
+                    .foregroundColor(.black)
+            }
+            
+            // Experience Bar
+            VStack(spacing: 8) {
+                Text("Experience")
+                    .font(.headline)
+                    .foregroundColor(.black)
+                
+                ZStack(alignment: .leading) {
+                    Rectangle()
+                        .fill(Color.pacePalOrange.opacity(0.3))
+                        .frame(height: 8)
+                        .cornerRadius(4)
+                    
+                    Rectangle()
+                        .fill(Color.pacePalOrange)
+                        .frame(width: experienceBarWidth, height: 8)
+                        .cornerRadius(4)
+                        .animation(.easeInOut(duration: 0.5), value: experienceBarWidth)
+                }
+                .frame(width: 200)
+                
+                HStack {
+                    Text("\(currentStageXPDisplay)/\(maxStageXPDisplay) XP")
+                        .font(.caption)
+                        .foregroundColor(.black.opacity(0.7))
+                    
+                    Spacer()
+                    
+                    Text(creature?.stageName ?? "Egg")
+                        .font(.caption)
+                        .foregroundColor(.pacePalOrange)
+                        .fontWeight(.semibold)
+                }
+            }
+            .padding()
+            .background(Color.pacePalOrange.opacity(0.1))
+            .cornerRadius(12)
+            
+            // Creature Stats
+            creatureStatsView
+            
+            // Inventory Display
+            if !inventory.isEmpty {
+                inventoryView
+            }
+        }
+    }
+    
+    private var creatureStatsView: some View {
+        VStack(spacing: 12) {
+            Text("Creature Stats")
+                .font(.headline)
+                .foregroundColor(.black)
+            
+            HStack(spacing: 20) {
+                VStack(spacing: 4) {
+                    Text("Run Points")
+                        .font(.caption)
+                        .foregroundColor(.black.opacity(0.7))
+                    Text("\(creature?.runPoints ?? 0)")
+                        .font(.title2)
+                        .fontWeight(.bold)
+                        .foregroundColor(.pacePalOrange)
+                }
+                
+                VStack(spacing: 4) {
+                    Text("KM Currency")
+                        .font(.caption)
+                        .foregroundColor(.black.opacity(0.7))
+                    Text(String(format: "%.1f", creature?.kmCurrency ?? 0.0))
+                        .font(.title2)
+                        .fontWeight(.bold)
+                        .foregroundColor(.pacePalOrange)
+                }
+                
+                VStack(spacing: 4) {
+                    Text("Happiness")
+                        .font(.caption)
+                        .foregroundColor(.black.opacity(0.7))
+                    Text("\(creature?.happiness ?? 0)")
+                        .font(.title2)
+                        .fontWeight(.bold)
+                        .foregroundColor(.pacePalOrange)
+                }
+                
+                VStack(spacing: 4) {
+                    Text("Experience")
+                        .font(.caption)
+                        .foregroundColor(.black.opacity(0.7))
+                    Text("\(creature?.experiencePoints ?? 0)")
+                        .font(.title2)
+                        .fontWeight(.bold)
+                        .foregroundColor(.blue)
+                }
+            }
+        }
+        .padding()
+        .background(Color.pacePalOrange.opacity(0.1))
+        .cornerRadius(12)
+    }
+    
+    private var inventoryView: some View {
+        VStack(spacing: 12) {
+            Text("Inventory")
+                .font(.headline)
+                .foregroundColor(.black)
+            
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 12) {
+                    ForEach(inventory) { item in
+                        InventoryItemView(item: item) {
+                            feedCreature(item.foodItem)
+                        }
+                    }
+                }
+                .padding(.horizontal)
+            }
+        }
+        .padding()
+        .background(Color.pacePalOrange.opacity(0.1))
+        .cornerRadius(12)
     }
 
     var body: some View {
@@ -48,140 +236,8 @@ struct HomeView: View {
                     }
                     .padding(.top, 20)
                     
-
                     // Creature Display
-                    VStack(spacing: 20) {
-                        // Creature Display
-                        VStack(spacing: 8) {
-                            Text(creature?.stageEmoji ?? "🥚")
-                                .font(.system(size: 80))
-                                .offset(y: bounceOffset)
-                                .animation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true), value: bounceOffset)
-                                .onAppear {
-                                    bounceOffset = -8
-                                    // Ensure creature is loaded when view appears
-                                    if creature == nil {
-                                        loadCreature()
-                                    }
-                                }
-                            
-                            Text(creature?.stageName ?? "Egg")
-                                .font(.headline)
-                                .foregroundColor(.black)
-                        }
-                        
-                        // Experience Bar
-                        VStack(spacing: 8) {
-                            Text("Experience")
-                                .font(.headline)
-                                .foregroundColor(.black)
-                            
-                            ZStack(alignment: .leading) {
-                                Rectangle()
-                                    .fill(Color.pacePalOrange.opacity(0.3))
-                                    .frame(height: 8)
-                                    .cornerRadius(4)
-                                
-                                Rectangle()
-                                    .fill(Color.pacePalOrange)
-                                    .frame(width: experienceBarWidth, height: 8)
-                                    .cornerRadius(4)
-                                    .animation(.easeInOut(duration: 0.5), value: experienceBarWidth)
-                            }
-                            .frame(width: 200)
-                            
-                            HStack {
-                                Text("\(creature?.currentStageXP ?? 0)/\(creature?.maxStageXP ?? 1) XP")
-                                    .font(.caption)
-                                    .foregroundColor(.black.opacity(0.7))
-                                
-                                Spacer()
-                                
-                                Text(creature?.stageName ?? "Egg")
-                                    .font(.caption)
-                                    .foregroundColor(.pacePalOrange)
-                                    .fontWeight(.semibold)
-                            }
-                        }
-                        .padding()
-                        .background(Color.pacePalOrange.opacity(0.1))
-                        .cornerRadius(12)
-                        
-                        // Creature Stats
-                        VStack(spacing: 12) {
-                            Text("Creature Stats")
-                                .font(.headline)
-                                .foregroundColor(.black)
-                            
-                            HStack(spacing: 20) {
-                                VStack(spacing: 4) {
-                                    Text("Run Points")
-                                        .font(.caption)
-                                        .foregroundColor(.black.opacity(0.7))
-                                    Text("\(creature?.runPoints ?? 0)")
-                                        .font(.title2)
-                                        .fontWeight(.bold)
-                                        .foregroundColor(.pacePalOrange)
-                                }
-                                
-                                VStack(spacing: 4) {
-                                    Text("KM Currency")
-                                        .font(.caption)
-                                        .foregroundColor(.black.opacity(0.7))
-                                    Text(String(format: "%.1f", creature?.kmCurrency ?? 0.0))
-                                        .font(.title2)
-                                        .fontWeight(.bold)
-                                        .foregroundColor(.pacePalOrange)
-                                }
-                                
-                                VStack(spacing: 4) {
-                                    Text("Happiness")
-                                        .font(.caption)
-                                        .foregroundColor(.black.opacity(0.7))
-                                    Text("\(creature?.happiness ?? 0)")
-                                        .font(.title2)
-                                        .fontWeight(.bold)
-                                        .foregroundColor(.pacePalOrange)
-                                }
-                                
-                                VStack(spacing: 4) {
-                                    Text("Experience")
-                                        .font(.caption)
-                                        .foregroundColor(.black.opacity(0.7))
-                                    Text("\(creature?.experiencePoints ?? 0)")
-                                        .font(.title2)
-                                        .fontWeight(.bold)
-                                        .foregroundColor(.blue)
-                                }
-                            }
-                        }
-                        .padding()
-                        .background(Color.pacePalOrange.opacity(0.1))
-                        .cornerRadius(12)
-                        
-                        // Inventory Display
-                        if !inventory.isEmpty {
-                            VStack(spacing: 12) {
-                                Text("Inventory")
-                                    .font(.headline)
-                                    .foregroundColor(.black)
-                                
-                                ScrollView(.horizontal, showsIndicators: false) {
-                                    HStack(spacing: 12) {
-                                        ForEach(inventory) { item in
-                                            InventoryItemView(item: item) {
-                                                feedCreature(item.foodItem)
-                                            }
-                                        }
-                                    }
-                                    .padding(.horizontal)
-                                }
-                            }
-                            .padding()
-                            .background(Color.pacePalOrange.opacity(0.1))
-                            .cornerRadius(12)
-                        }
-                    }
+                    creatureDisplayView
 
                     if let errorMessage { 
                         Text(errorMessage)
@@ -242,17 +298,29 @@ struct HomeView: View {
             StatsView(stats: store.stats)
         }
         .sheet(isPresented: $showCoupons) {
-            CouponView(onSuccessDismiss: {
-                // Check for evolution after success popup is dismissed
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                    if let evolutionData = ActiveCreatureStorage.shared.getEvolutionInfo() {
-                        evolutionInfo = evolutionData
-                        showEvolutionPopup = true
+            CouponView(onSuccessDismiss: { [self] in
+                // First refresh creature data to show updated XP
+                refreshAfterCouponRedemption()
+                
+                // Check if evolution should occur
+                if let currentCreature = ActiveCreatureStorage.shared.load() {
+                    let shouldEvolve = currentCreature.canEvolve
+                    
+                    if shouldEvolve {
+                        // Set temporary XP to show progression before evolution
+                        tempExperiencePoints = currentCreature.experiencePoints
+                        pendingEvolution = true
+                        
+                        // Show evolution notification immediately when user returns to home screen
+                        showEvolutionNotification = true
                     }
                 }
             })
             .onDisappear {
-                refreshAfterCouponRedemption()
+                // Only refresh if no evolution is pending (success popup wasn't shown)
+                if !pendingEvolution {
+                    refreshAfterCouponRedemption()
+                }
             }
         }
             .sheet(isPresented: $showStore) {
@@ -271,7 +339,9 @@ struct HomeView: View {
                         onDismiss: {
                             showEvolutionPopup = false
                             self.evolutionInfo = nil
-                            // Refresh creature data to show updated stage
+                            // Clear temporary state and refresh creature data
+                            tempExperiencePoints = nil
+                            pendingEvolution = false
                             loadCreature()
                         }
                     )
@@ -289,6 +359,27 @@ struct HomeView: View {
         .fullScreenCover(isPresented: $navigateToLogin) {
             LoginView()
         }
+        .overlay(
+            // Evolution Notification Popup
+            Group {
+                if showEvolutionNotification {
+                    EvolutionNotificationView {
+                        showEvolutionNotification = false
+                        // Perform the actual evolution
+                        let didEvolve = ActiveCreatureStorage.shared.performEvolution()
+                        if didEvolve {
+                            // Show the detailed evolution popup after evolution is performed
+                            if let evolutionData = ActiveCreatureStorage.shared.getEvolutionInfo() {
+                                evolutionInfo = evolutionData
+                                showEvolutionPopup = true
+                            }
+                        }
+                    }
+                    .transition(.scale.combined(with: .opacity))
+                    .animation(.spring(response: 0.6, dampingFraction: 0.8), value: showEvolutionNotification)
+                }
+            }
+        )
         .overlay(
             // Hamburger Menu
             Group {
@@ -602,6 +693,64 @@ struct InventoryItemView: View {
         .background(Color.pacePalOrange.opacity(0.1))
         .cornerRadius(8)
         .frame(width: 80)
+    }
+}
+
+struct EvolutionNotificationView: View {
+    let onDismiss: () -> Void
+    @State private var animationScale: CGFloat = 0.5
+    @State private var animationOpacity: Double = 0.0
+    
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.7)
+                .ignoresSafeArea()
+                .onTapGesture {
+                    onDismiss()
+                }
+            
+            VStack(spacing: 20) {
+                // Evolution Icon with Animation
+                ZStack {
+                    Circle()
+                        .fill(Color.pacePalOrange)
+                        .frame(width: 100, height: 100)
+                        .scaleEffect(animationScale)
+                        .opacity(animationOpacity)
+                    
+                    Text("🎉")
+                        .font(.system(size: 50))
+                        .scaleEffect(animationScale)
+                        .opacity(animationOpacity)
+                }
+                
+                // Evolution Message
+                VStack(spacing: 12) {
+                    Text("Your creature has evolved!")
+                        .font(.title2)
+                        .fontWeight(.bold)
+                        .foregroundColor(.white)
+                        .multilineTextAlignment(.center)
+                    
+                    Text("Tap to see the details")
+                        .font(.headline)
+                        .foregroundColor(.white.opacity(0.9))
+                        .multilineTextAlignment(.center)
+                }
+                .opacity(animationOpacity)
+            }
+            .padding(30)
+            .background(Color.pacePalOrange.opacity(0.95))
+            .cornerRadius(20)
+            .scaleEffect(animationScale)
+            .opacity(animationOpacity)
+        }
+        .onAppear {
+            withAnimation(.spring(response: 0.6, dampingFraction: 0.7)) {
+                animationScale = 1.0
+                animationOpacity = 1.0
+            }
+        }
     }
 }
 

@@ -97,7 +97,6 @@ final class ActiveCreatureStorage {
         resetWeekIfNeeded()
         guard var current = load() else { return false }
         
-        let oldStage = current.stage
         current.runPoints += 1
         current.kmCurrency += max(0, distanceKm)
         // Earn 1 XP for redeeming a run
@@ -105,14 +104,26 @@ final class ActiveCreatureStorage {
         // Happiness boost on redeem
         current.happiness = min(100, current.happiness + 5)
         
-        // Check for evolution
+        // Check if evolution should occur (but don't evolve yet)
+        let shouldEvolve = current.canEvolve
+        
+        save(current)
+        return shouldEvolve
+    }
+    
+    // Actually perform the evolution
+    func performEvolution() -> Bool {
+        guard var current = load() else { return false }
+        
         var didEvolve = false
         while current.canEvolve {
             current.stage += 1
             didEvolve = true
         }
         
-        save(current)
+        if didEvolve {
+            save(current)
+        }
         return didEvolve
     }
     
