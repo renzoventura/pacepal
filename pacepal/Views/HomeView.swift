@@ -265,6 +265,29 @@ struct HomeView: View {
                         }
                         .buttonStyle(.bordered)
                         .tint(.pacePalOrange)
+                        
+                        // DEBUG: Test evolution notification
+                        Button(action: {
+                            showEvolutionNotification = true
+                        }) {
+                            Text("Test Evolution").font(.subheadline)
+                        }
+                        .buttonStyle(.bordered)
+                        .tint(.red)
+                        
+                        // DEBUG: Force creature to have enough XP
+                        Button(action: {
+                            if var current = ActiveCreatureStorage.shared.load() {
+                                current.experiencePoints = 1 // Force to have enough XP for first evolution
+                                ActiveCreatureStorage.shared.save(current)
+                                loadCreature()
+                                print("DEBUG: Forced creature XP to 1")
+                            }
+                        }) {
+                            Text("Force XP").font(.subheadline)
+                        }
+                        .buttonStyle(.bordered)
+                        .tint(.blue)
                     }
 
                     if isLoading { 
@@ -302,17 +325,20 @@ struct HomeView: View {
                 // First refresh creature data to show updated XP
                 refreshAfterCouponRedemption()
                 
-                // Check if evolution should occur
-                if let currentCreature = ActiveCreatureStorage.shared.load() {
-                    let shouldEvolve = currentCreature.canEvolve
-                    
-                    if shouldEvolve {
-                        // Set temporary XP to show progression before evolution
-                        tempExperiencePoints = currentCreature.experiencePoints
-                        pendingEvolution = true
+                // Add a small delay to ensure data is refreshed
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    // Check if evolution should occur
+                    if let currentCreature = ActiveCreatureStorage.shared.load() {
+                        let shouldEvolve = currentCreature.canEvolve
                         
-                        // Show evolution notification immediately when user returns to home screen
-                        showEvolutionNotification = true
+                        if shouldEvolve {
+                            // Set temporary XP to show progression before evolution
+                            tempExperiencePoints = currentCreature.experiencePoints
+                            pendingEvolution = true
+                            
+                            // Show evolution notification immediately when user returns to home screen
+                            showEvolutionNotification = true
+                        }
                     }
                 }
             })
@@ -368,6 +394,11 @@ struct HomeView: View {
                         // Perform the actual evolution
                         let didEvolve = ActiveCreatureStorage.shared.performEvolution()
                         if didEvolve {
+                            // Clear temporary state and refresh creature data
+                            tempExperiencePoints = nil
+                            pendingEvolution = false
+                            loadCreature()
+                            
                             // Show the detailed evolution popup after evolution is performed
                             if let evolutionData = ActiveCreatureStorage.shared.getEvolutionInfo() {
                                 evolutionInfo = evolutionData

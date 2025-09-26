@@ -9,6 +9,7 @@ struct EvolutionPopupView: View {
     @State private var animationScale: CGFloat = 0.5
     @State private var animationOpacity: Double = 0.0
     @State private var showSparkles = false
+    @State private var showNewStage = false
     
     private var evolutionTitle: String {
         if oldStage == 0 && newStage == 1 {
@@ -43,10 +44,12 @@ struct EvolutionPopupView: View {
                         .scaleEffect(animationScale)
                         .opacity(animationOpacity)
                     
-                    Text(Creature.stageNames[newStage]?.stageEmoji ?? "❓")
+                    // Show old stage first, then transition to new stage
+                    Text(showNewStage ? (Creature.stageNames[newStage]?.stageEmoji ?? "❓") : (Creature.stageNames[oldStage]?.stageEmoji ?? "❓"))
                         .font(.system(size: 60))
                         .scaleEffect(animationScale)
                         .opacity(animationOpacity)
+                        .animation(.easeInOut(duration: 0.5), value: showNewStage)
                 }
                 
                 // Evolution Message
@@ -96,6 +99,9 @@ struct EvolutionPopupView: View {
             .opacity(animationOpacity)
         }
         .onAppear {
+            // Start with old stage emoji
+            showNewStage = false
+            
             withAnimation(.spring(response: 0.6, dampingFraction: 0.7)) {
                 animationScale = 1.0
                 animationOpacity = 1.0
@@ -103,6 +109,13 @@ struct EvolutionPopupView: View {
             
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                 showSparkles = true
+            }
+            
+            // Transition to new stage after a delay
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                withAnimation(.easeInOut(duration: 0.8)) {
+                    showNewStage = true
+                }
             }
         }
     }
