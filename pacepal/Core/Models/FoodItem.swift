@@ -6,6 +6,7 @@ struct FoodItem: Codable, Identifiable, Equatable {
     let emoji: String
     let cost: Double // KM Currency cost
     let happinessEffect: Int // How much happiness it provides
+    let foodValue: Int // How much hunger it satisfies (proportional feeding)
     let description: String
     
     static let availableItems: [FoodItem] = [
@@ -15,7 +16,8 @@ struct FoodItem: Codable, Identifiable, Equatable {
             emoji: "🍎",
             cost: 3.0,
             happinessEffect: 5,
-            description: "A fresh, crunchy apple that gives a small happiness boost"
+            foodValue: 3,
+            description: "A fresh, crunchy apple that gives a small hunger satisfaction"
         ),
         FoodItem(
             id: "potato",
@@ -23,7 +25,8 @@ struct FoodItem: Codable, Identifiable, Equatable {
             emoji: "🥔",
             cost: 5.0,
             happinessEffect: 8,
-            description: "A hearty potato that provides good nutrition"
+            foodValue: 5,
+            description: "A hearty potato that provides good nutrition and hunger relief"
         ),
         FoodItem(
             id: "cake",
@@ -31,7 +34,8 @@ struct FoodItem: Codable, Identifiable, Equatable {
             emoji: "🍰",
             cost: 10.0,
             happinessEffect: 15,
-            description: "A delicious cake that makes your creature very happy"
+            foodValue: 8,
+            description: "A delicious cake that satisfies hunger and makes your creature very happy"
         ),
         FoodItem(
             id: "carrot",
@@ -39,7 +43,8 @@ struct FoodItem: Codable, Identifiable, Equatable {
             emoji: "🥕",
             cost: 2.0,
             happinessEffect: 3,
-            description: "A healthy carrot snack"
+            foodValue: 2,
+            description: "A healthy carrot snack that provides light hunger relief"
         ),
         FoodItem(
             id: "banana",
@@ -47,7 +52,8 @@ struct FoodItem: Codable, Identifiable, Equatable {
             emoji: "🍌",
             cost: 4.0,
             happinessEffect: 6,
-            description: "A sweet banana for energy"
+            foodValue: 4,
+            description: "A sweet banana for energy and moderate hunger satisfaction"
         ),
         FoodItem(
             id: "pizza",
@@ -55,7 +61,8 @@ struct FoodItem: Codable, Identifiable, Equatable {
             emoji: "🍕",
             cost: 15.0,
             happinessEffect: 25,
-            description: "A special treat that brings maximum happiness"
+            foodValue: 12,
+            description: "A special treat that provides excellent hunger satisfaction and maximum happiness"
         )
     ]
 }

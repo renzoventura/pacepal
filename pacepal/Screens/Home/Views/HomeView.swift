@@ -21,6 +21,7 @@ struct HomeView: View {
     @State private var pendingEvolution = false
     @State private var tempExperiencePoints: Int? = nil
     @State private var showEvolutionNotification = false
+    @State private var hungerUpdateTimer: Timer? = nil
 
     private var experienceBarWidth: CGFloat {
         guard let creature = creature else { return 0 }
@@ -43,6 +44,25 @@ struct HomeView: View {
     private var maxStageXPDisplay: Int {
         guard let creature = creature else { return 1 }
         return creature.stage < 3 ? Creature.evolutionThresholds[creature.stage + 1] - Creature.evolutionThresholds[creature.stage] : 1
+    }
+    
+    private var hungerBarWidth: CGFloat {
+        guard let creature = creature else { return 0 }
+        let progress = CGFloat(creature.hunger) / 100.0
+        return min(200, max(0, progress * 200))
+    }
+    
+    private var hungerBarColor: Color {
+        guard let creature = creature else { return .red }
+        switch creature.hunger {
+        case 0..<20: return .red
+        case 20..<40: return .orange
+        case 40..<60: return .yellow
+        case 60..<80: return .green
+        case 80..<100: return .blue
+        case 100: return .purple
+        default: return .red
+        }
     }
     
     private var headerView: some View {
@@ -84,6 +104,9 @@ struct HomeView: View {
                         if creature == nil {
                             loadCreature()
                         }
+                        // Update hunger when view appears
+                        ActiveCreatureStorage.shared.updateHunger()
+                        loadCreature()
                     }
                 
                 Text(creature?.stageName ?? "Egg")
@@ -126,6 +149,50 @@ struct HomeView: View {
             }
             .padding()
             .background(Color.pacePalOrange.opacity(0.1))
+            .cornerRadius(12)
+            
+            // Hunger Bar
+            VStack(spacing: 8) {
+                HStack {
+                    Text("Hunger")
+                        .font(.headline)
+                        .foregroundColor(.black)
+                    
+                    Spacer()
+                    
+                    Text(creature?.hungerEmoji ?? "😐")
+                        .font(.title2)
+                }
+                
+                ZStack(alignment: .leading) {
+                    Rectangle()
+                        .fill(Color.red.opacity(0.3))
+                        .frame(height: 8)
+                        .cornerRadius(4)
+                    
+                    Rectangle()
+                        .fill(hungerBarColor)
+                        .frame(width: hungerBarWidth, height: 8)
+                        .cornerRadius(4)
+                        .animation(.easeInOut(duration: 0.5), value: hungerBarWidth)
+                }
+                .frame(width: 200)
+                
+                HStack {
+                    Text("\(creature?.hunger ?? 0)/100")
+                        .font(.caption)
+                        .foregroundColor(.black.opacity(0.7))
+                    
+                    Spacer()
+                    
+                    Text(creature?.hungerLevel ?? "Unknown")
+                        .font(.caption)
+                        .foregroundColor(hungerBarColor)
+                        .fontWeight(.semibold)
+                }
+            }
+            .padding()
+            .background(Color.red.opacity(0.1))
             .cornerRadius(12)
             
             // Creature Stats
@@ -183,6 +250,16 @@ struct HomeView: View {
                         .font(.title2)
                         .fontWeight(.bold)
                         .foregroundColor(.blue)
+                }
+                
+                VStack(spacing: 4) {
+                    Text("Hunger")
+                        .font(.caption)
+                        .foregroundColor(.black.opacity(0.7))
+                    Text("\(creature?.hunger ?? 0)")
+                        .font(.title2)
+                        .fontWeight(.bold)
+                        .foregroundColor(hungerBarColor)
                 }
             }
         }
@@ -309,6 +386,17 @@ struct HomeView: View {
                 bootstrap()
                 loadInventory()
                 loadCreature()
+                
+                // Start hunger update timer (every 5 minutes)
+                hungerUpdateTimer = Timer.scheduledTimer(withTimeInterval: 300, repeats: true) { _ in
+                    ActiveCreatureStorage.shared.updateHunger()
+                    loadCreature()
+                }
+            }
+            .onDisappear {
+                // Stop the timer when view disappears
+                hungerUpdateTimer?.invalidate()
+                hungerUpdateTimer = nil
             }
         }
         .fullScreenCover(isPresented: $showLoadingView) {
@@ -579,8 +667,11 @@ struct HomeView: View {
     private func feedCreature(_ foodItem: FoodItem) {
         guard let creature = ActiveCreatureStorage.shared.load() else { return }
         
+        // Update hunger before feeding
+        ActiveCreatureStorage.shared.updateHunger()
+        
         // Feed creature and check for evolution
-        let didEvolve = ActiveCreatureStorage.shared.feedCreature(happinessGained: foodItem.happinessEffect)
+        let didEvolve = ActiveCreatureStorage.shared.feedCreature(foodValue: foodItem.foodValue)
         
         // Update local creature state
         self.creature = ActiveCreatureStorage.shared.load()
@@ -598,8 +689,9 @@ struct HomeView: View {
                 showEvolutionPopup = true
             }
         } else {
-            // Show regular feedback
-            errorMessage = "Fed \(foodItem.emoji) \(foodItem.name)! +\(foodItem.happinessEffect) Happiness"
+            // Show regular feedback with hunger info
+            let hungerReduction = min(100, (foodItem.foodValue * 100) / creature.requiredFoodValue)
+            errorMessage = "Fed \(foodItem.emoji) \(foodItem.name)! +\(hungerReduction) Hunger Relief"
             DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
                 errorMessage = nil
             }
