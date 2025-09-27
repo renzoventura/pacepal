@@ -325,27 +325,27 @@ struct SuccessAnimationView: View {
                     
                     Text("You earned:")
                         .font(.headline)
-                        .foregroundColor(.white.opacity(0.8))
+                        .foregroundColor(.white.opacity(0.9))
                     
                     HStack(spacing: 30) {
                         VStack(spacing: 4) {
                             Text("+\(pointsEarned)")
                                 .font(.title)
                                 .fontWeight(.bold)
-                                .foregroundColor(.pacePalOrange)
+                                .foregroundColor(.white)
                             Text("Points")
                                 .font(.caption)
-                                .foregroundColor(.white.opacity(0.7))
+                                .foregroundColor(.white.opacity(0.8))
                         }
                         
                         VStack(spacing: 4) {
                             Text("+\(String(format: "%.1f", kmEarned))")
                                 .font(.title)
                                 .fontWeight(.bold)
-                                .foregroundColor(.pacePalOrange)
+                                .foregroundColor(.white)
                             Text("KM")
                                 .font(.caption)
-                                .foregroundColor(.white.opacity(0.7))
+                                .foregroundColor(.white.opacity(0.8))
                         }
                     }
                 }
@@ -356,14 +356,22 @@ struct SuccessAnimationView: View {
                     onDismiss()
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(.pacePalOrange)
+                .tint(.white)
+                .foregroundColor(.pacePalOrange)
                 .font(.headline)
+                .fontWeight(.semibold)
                 .padding(.horizontal, 30)
                 .padding(.vertical, 12)
                 .opacity(animationOpacity)
             }
             .padding(30)
-            .background(Color.pacePalOrange.opacity(0.95))
+            .background(
+                LinearGradient(
+                    gradient: Gradient(colors: [Color.pacePalOrange, Color.pacePalOrange.opacity(0.8)]),
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
             .cornerRadius(20)
             .scaleEffect(animationScale)
             .opacity(animationOpacity)
