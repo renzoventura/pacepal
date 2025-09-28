@@ -193,13 +193,18 @@ final class ActiveCreatureStorage {
     func updateHunger() {
         guard var current = load() else { return }
         
+        // Eggs don't have hunger - skip hunger updates for stage 0
+        if current.stage == 0 {
+            return
+        }
+        
         let now = Date()
         let timeSinceLastFed = now.timeIntervalSince(current.lastFedDate)
         
         // Hunger decays based on creature stage (higher stages need more frequent feeding)
         let decayRate: Double
         switch current.stage {
-        case 0: decayRate = 0.5  // Egg decays slowly
+        case 0: decayRate = 0.0  // Egg has no hunger decay
         case 1: decayRate = 1.0  // Baby decays normally
         case 2: decayRate = 1.5  // Teen decays faster
         case 3: decayRate = 2.0  // Adult decays fastest

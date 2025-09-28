@@ -151,57 +151,57 @@ struct HomeView: View {
             .background(Color.pacePalOrange.opacity(0.1))
             .cornerRadius(12)
             
-            // Hunger Bar
-            VStack(spacing: 8) {
-                HStack {
-                    Text("Hunger")
-                        .font(.headline)
-                        .foregroundColor(.black)
+            // Hunger Bar (only show for non-egg creatures)
+            if let creature = creature, creature.stage > 0 {
+                VStack(spacing: 8) {
+                    HStack {
+                        Text("Hunger")
+                            .font(.headline)
+                            .foregroundColor(.black)
+                        
+                        Spacer()
+                        
+                        Text(creature.hungerEmoji)
+                            .font(.title2)
+                    }
                     
-                    Spacer()
+                    ZStack(alignment: .leading) {
+                        Rectangle()
+                            .fill(Color.red.opacity(0.3))
+                            .frame(height: 8)
+                            .cornerRadius(4)
+                        
+                        Rectangle()
+                            .fill(hungerBarColor)
+                            .frame(width: hungerBarWidth, height: 8)
+                            .cornerRadius(4)
+                            .animation(.easeInOut(duration: 0.5), value: hungerBarWidth)
+                    }
+                    .frame(width: 200)
                     
-                    Text(creature?.hungerEmoji ?? "😐")
-                        .font(.title2)
+                    HStack {
+                        Text("\(creature.hunger)/100")
+                            .font(.caption)
+                            .foregroundColor(.black.opacity(0.7))
+                        
+                        Spacer()
+                        
+                        Text(creature.hungerLevel)
+                            .font(.caption)
+                            .foregroundColor(hungerBarColor)
+                            .fontWeight(.semibold)
+                    }
                 }
-                
-                ZStack(alignment: .leading) {
-                    Rectangle()
-                        .fill(Color.red.opacity(0.3))
-                        .frame(height: 8)
-                        .cornerRadius(4)
-                    
-                    Rectangle()
-                        .fill(hungerBarColor)
-                        .frame(width: hungerBarWidth, height: 8)
-                        .cornerRadius(4)
-                        .animation(.easeInOut(duration: 0.5), value: hungerBarWidth)
-                }
-                .frame(width: 200)
-                
-                HStack {
-                    Text("\(creature?.hunger ?? 0)/100")
-                        .font(.caption)
-                        .foregroundColor(.black.opacity(0.7))
-                    
-                    Spacer()
-                    
-                    Text(creature?.hungerLevel ?? "Unknown")
-                        .font(.caption)
-                        .foregroundColor(hungerBarColor)
-                        .fontWeight(.semibold)
-                }
+                .padding()
+                .background(Color.red.opacity(0.1))
+                .cornerRadius(12)
             }
-            .padding()
-            .background(Color.red.opacity(0.1))
-            .cornerRadius(12)
             
             // Creature Stats
             creatureStatsView
             
-            // Inventory Display
-            if !inventory.isEmpty {
-                inventoryView
-            }
+            // Inventory Display (always show)
+            inventoryView
         }
     }
     
@@ -252,17 +252,22 @@ struct HomeView: View {
                         .foregroundColor(.blue)
                 }
                 
-                VStack(spacing: 4) {
-                    Text("Hunger")
-                        .font(.caption)
-                        .foregroundColor(.black.opacity(0.7))
-                    Text("\(creature?.hunger ?? 0)")
-                        .font(.title2)
-                        .fontWeight(.bold)
-                        .foregroundColor(hungerBarColor)
+                // Only show hunger stat for non-egg creatures
+                if let creature = creature, creature.stage > 0 {
+                    VStack(spacing: 4) {
+                        Text("Hunger")
+                            .font(.caption)
+                            .foregroundColor(.black.opacity(0.7))
+                        Text("\(creature.hunger)")
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .foregroundColor(hungerBarColor)
+                    }
                 }
             }
+            .frame(maxWidth: .infinity)
         }
+        .frame(maxWidth: .infinity)
         .padding()
         .background(Color.pacePalOrange.opacity(0.1))
         .cornerRadius(12)
@@ -274,17 +279,38 @@ struct HomeView: View {
                 .font(.headline)
                 .foregroundColor(.black)
             
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 12) {
-                    ForEach(inventory) { item in
-                        InventoryItemView(item: item) {
-                            feedCreature(item.foodItem)
+            if inventory.isEmpty {
+                VStack(spacing: 8) {
+                    Text("📦")
+                        .font(.system(size: 40))
+                        .opacity(0.5)
+                    
+                    Text("No items available")
+                        .font(.subheadline)
+                        .foregroundColor(.black.opacity(0.6))
+                    
+                    Text("Visit the store to buy food for your creature!")
+                        .font(.caption)
+                        .foregroundColor(.black.opacity(0.5))
+                        .multilineTextAlignment(.center)
+                }
+                .padding(.vertical, 20)
+                .frame(maxWidth: .infinity)
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 12) {
+                        ForEach(inventory) { item in
+                            InventoryItemView(item: item) {
+                                feedCreature(item.foodItem)
+                            }
                         }
                     }
+                    .padding(.horizontal)
                 }
-                .padding(.horizontal)
+                .frame(maxWidth: .infinity)
             }
         }
+        .frame(maxWidth: .infinity)
         .padding()
         .background(Color.pacePalOrange.opacity(0.1))
         .cornerRadius(12)
@@ -666,6 +692,15 @@ struct HomeView: View {
     
     private func feedCreature(_ foodItem: FoodItem) {
         guard let creature = ActiveCreatureStorage.shared.load() else { return }
+        
+        // Eggs can't be fed - they don't have hunger
+        if creature.stage == 0 {
+            errorMessage = "Eggs don't need feeding! Wait for your creature to hatch first."
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                errorMessage = nil
+            }
+            return
+        }
         
         // Update hunger before feeding
         ActiveCreatureStorage.shared.updateHunger()
