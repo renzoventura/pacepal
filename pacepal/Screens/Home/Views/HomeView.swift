@@ -114,37 +114,57 @@ struct HomeView: View {
                     .foregroundColor(.black)
             }
             
-            // Experience Bar
+            // Experience Bar (or XP display for fully evolved creatures)
             VStack(spacing: 8) {
                 Text("Experience")
                     .font(.headline)
                     .foregroundColor(.black)
                 
-                ZStack(alignment: .leading) {
-                    Rectangle()
-                        .fill(Color.pacePalOrange.opacity(0.3))
-                        .frame(height: 8)
-                        .cornerRadius(4)
+                if let creature = creature, creature.stage >= 3 {
+                    // Fully evolved creature - show total XP as a number
+                    VStack(spacing: 4) {
+                        Text("\(creature.experiencePoints)")
+                            .font(.system(size: 32, weight: .bold, design: .rounded))
+                            .foregroundColor(.pacePalOrange)
+                        
+                        Text("Total Experience")
+                            .font(.subheadline)
+                            .foregroundColor(.black.opacity(0.7))
+                        
+                        Text("Fully Evolved Master")
+                            .font(.caption)
+                            .foregroundColor(.pacePalOrange)
+                            .fontWeight(.semibold)
+                    }
+                    .padding(.vertical, 16)
+                } else {
+                    // Not fully evolved - show progress bar
+                    ZStack(alignment: .leading) {
+                        Rectangle()
+                            .fill(Color.pacePalOrange.opacity(0.3))
+                            .frame(height: 8)
+                            .cornerRadius(4)
+                        
+                        Rectangle()
+                            .fill(Color.pacePalOrange)
+                            .frame(width: experienceBarWidth, height: 8)
+                            .cornerRadius(4)
+                            .animation(.easeInOut(duration: 0.5), value: experienceBarWidth)
+                    }
+                    .frame(width: 200)
                     
-                    Rectangle()
-                        .fill(Color.pacePalOrange)
-                        .frame(width: experienceBarWidth, height: 8)
-                        .cornerRadius(4)
-                        .animation(.easeInOut(duration: 0.5), value: experienceBarWidth)
-                }
-                .frame(width: 200)
-                
-                HStack {
-                    Text("\(currentStageXPDisplay)/\(maxStageXPDisplay) XP")
-                        .font(.caption)
-                        .foregroundColor(.black.opacity(0.7))
-                    
-                    Spacer()
-                    
-                    Text(creature?.stageName ?? "Egg")
-                        .font(.caption)
-                        .foregroundColor(.pacePalOrange)
-                        .fontWeight(.semibold)
+                    HStack {
+                        Text("\(currentStageXPDisplay)/\(maxStageXPDisplay) XP")
+                            .font(.caption)
+                            .foregroundColor(.black.opacity(0.7))
+                        
+                        Spacer()
+                        
+                        Text(creature?.stageName ?? "Egg")
+                            .font(.caption)
+                            .foregroundColor(.pacePalOrange)
+                            .fontWeight(.semibold)
+                    }
                 }
             }
             .padding()
