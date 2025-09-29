@@ -32,7 +32,8 @@ struct HomeView: View {
         let maxStageXP = creature.stage < 3 ? Creature.evolutionThresholds[creature.stage + 1] - Creature.evolutionThresholds[creature.stage] : 1
         
         let progress = maxStageXP > 0 ? CGFloat(currentStageXP) / CGFloat(maxStageXP) : 0
-        return min(200, max(0, progress * 200))
+        // Return progress as a percentage (0.0 to 1.0) for use with maxWidth
+        return max(0, min(1, progress))
     }
     
     private var currentStageXPDisplay: Int {
@@ -139,31 +140,37 @@ struct HomeView: View {
                     .padding(.vertical, 16)
                 } else {
                     // Not fully evolved - show progress bar
-                    ZStack(alignment: .leading) {
-                        Rectangle()
-                            .fill(Color.pacePalOrange.opacity(0.3))
-                            .frame(height: 8)
-                            .cornerRadius(4)
+                    VStack(spacing: 8) {
+                        GeometryReader { geometry in
+                            ZStack(alignment: .leading) {
+                                Rectangle()
+                                    .fill(Color.pacePalOrange.opacity(0.3))
+                                    .frame(height: 8)
+                                    .cornerRadius(4)
+                                
+                                Rectangle()
+                                    .fill(Color.pacePalOrange)
+                                    .frame(width: geometry.size.width * experienceBarWidth, height: 8)
+                                    .cornerRadius(4)
+                                    .animation(.easeInOut(duration: 0.5), value: experienceBarWidth)
+                            }
+                        }
+                        .frame(height: 8)
+                        .frame(maxWidth: .infinity)
                         
-                        Rectangle()
-                            .fill(Color.pacePalOrange)
-                            .frame(width: experienceBarWidth, height: 8)
-                            .cornerRadius(4)
-                            .animation(.easeInOut(duration: 0.5), value: experienceBarWidth)
-                    }
-                    .frame(width: 200)
-                    
-                    HStack {
-                        Text("\(currentStageXPDisplay)/\(maxStageXPDisplay) XP")
-                            .font(.caption)
-                            .foregroundColor(.black.opacity(0.7))
-                        
-                        Spacer()
-                        
-                        Text(creature?.stageName ?? "Egg")
-                            .font(.caption)
-                            .foregroundColor(.pacePalOrange)
-                            .fontWeight(.semibold)
+                        HStack {
+                            Text("\(currentStageXPDisplay)/\(maxStageXPDisplay) XP")
+                                .font(.caption)
+                                .foregroundColor(.black.opacity(0.7))
+                            
+                            Spacer()
+                            
+                            Text(creature?.stageName ?? "Egg")
+                                .font(.caption)
+                                .foregroundColor(.pacePalOrange)
+                                .fontWeight(.semibold)
+                        }
+                        .frame(maxWidth: .infinity)
                     }
                 }
             }
