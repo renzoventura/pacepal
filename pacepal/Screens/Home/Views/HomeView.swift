@@ -377,49 +377,57 @@ struct HomeView: View {
                     }
 
                     // Action Buttons
-                    HStack(spacing: 12) {
-                        Button(action: openCoupons) {
-                            Text("Redeem Runs").font(.subheadline)
-                        }
-                        .buttonStyle(.bordered)
-                        .tint(.pacePalOrange)
-
-                        Button(action: openStore) {
-                            Text("Store").font(.subheadline)
-                        }
-                        .buttonStyle(.bordered)
-                        .tint(.pacePalOrange)
-
-                        Button(action: showStats) {
-                            Text("View Details").font(.subheadline)
-                        }
-                        .buttonStyle(.bordered)
-                        .tint(.pacePalOrange)
-                        
-                        // DEBUG: Test evolution notification
-                        Button(action: {
-                            showEvolutionNotification = true
-                        }) {
-                            Text("Test Evolution").font(.subheadline)
-                        }
-                        .buttonStyle(.bordered)
-                        .tint(.red)
-                        
-                        // DEBUG: Force creature to have enough XP for next evolution
-                        Button(action: {
-                            if var current = ActiveCreatureStorage.shared.load() {
-                                // Give enough XP for the next evolution stage
-                                let nextStageThreshold = current.stage < 3 ? Creature.evolutionThresholds[current.stage + 1] : 19
-                                current.experiencePoints = nextStageThreshold
-                                ActiveCreatureStorage.shared.save(current)
-                                loadCreature()
-                                print("DEBUG: Forced creature XP to \(nextStageThreshold) for stage \(current.stage)")
+                    VStack(spacing: 16) {
+                        // Main Action Buttons
+                        HStack(spacing: 12) {
+                            Button(action: openCoupons) {
+                                Text("Redeem Runs").font(.subheadline)
                             }
-                        }) {
-                            Text("Force XP").font(.subheadline)
+                            .buttonStyle(.bordered)
+                            .tint(.pacePalOrange)
+
+                            Button(action: openStore) {
+                                Text("Store").font(.subheadline)
+                            }
+                            .buttonStyle(.bordered)
+                            .tint(.pacePalOrange)
+
+                            Button(action: showStats) {
+                                Text("View Details").font(.subheadline)
+                            }
+                            .buttonStyle(.bordered)
+                            .tint(.pacePalOrange)
                         }
-                        .buttonStyle(.bordered)
-                        .tint(.blue)
+                        
+                        // Divider for Debug Section
+                        Divider()
+                            .background(Color.gray.opacity(0.3))
+                        
+                        // Debug Buttons
+                        HStack(spacing: 12) {
+                            Button(action: {
+                                showEvolutionNotification = true
+                            }) {
+                                Text("Test Evolution").font(.subheadline)
+                            }
+                            .buttonStyle(.bordered)
+                            .tint(.red)
+                            
+                            Button(action: {
+                                if var current = ActiveCreatureStorage.shared.load() {
+                                    // Give enough XP for the next evolution stage
+                                    let nextStageThreshold = current.stage < 3 ? Creature.evolutionThresholds[current.stage + 1] : 19
+                                    current.experiencePoints = nextStageThreshold
+                                    ActiveCreatureStorage.shared.save(current)
+                                    loadCreature()
+                                    print("DEBUG: Forced creature XP to \(nextStageThreshold) for stage \(current.stage)")
+                                }
+                            }) {
+                                Text("Force XP").font(.subheadline)
+                            }
+                            .buttonStyle(.bordered)
+                            .tint(.blue)
+                        }
                     }
 
                     if isLoading { 
