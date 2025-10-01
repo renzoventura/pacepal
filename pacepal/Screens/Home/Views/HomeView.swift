@@ -380,23 +380,32 @@ struct HomeView: View {
                     VStack(spacing: 16) {
                         // Main Action Buttons
                         HStack(spacing: 12) {
-                            Button(action: openCoupons) {
-                                Text("Redeem Runs").font(.subheadline)
-                            }
-                            .buttonStyle(.bordered)
-                            .tint(.pacePalOrange)
+                        Button(action: {
+                            SoundService.shared.playButtonTap()
+                            openCoupons()
+                        }) {
+                            Text("Redeem Runs").font(.subheadline)
+                        }
+                        .buttonStyle(.bordered)
+                        .tint(.pacePalOrange)
 
-                            Button(action: openStore) {
-                                Text("Store").font(.subheadline)
-                            }
-                            .buttonStyle(.bordered)
-                            .tint(.pacePalOrange)
+                        Button(action: {
+                            SoundService.shared.playButtonTap()
+                            openStore()
+                        }) {
+                            Text("Store").font(.subheadline)
+                        }
+                        .buttonStyle(.bordered)
+                        .tint(.pacePalOrange)
 
-                            Button(action: showStats) {
-                                Text("View Details").font(.subheadline)
-                            }
-                            .buttonStyle(.bordered)
-                            .tint(.pacePalOrange)
+                        Button(action: {
+                            SoundService.shared.playButtonTap()
+                            showStats()
+                        }) {
+                            Text("View Details").font(.subheadline)
+                        }
+                        .buttonStyle(.bordered)
+                        .tint(.pacePalOrange)
                         }
                         
                         // Divider for Debug Section
@@ -406,6 +415,7 @@ struct HomeView: View {
                         // Debug Buttons
                         HStack(spacing: 12) {
                             Button(action: {
+                                SoundService.shared.playButtonTap()
                                 showEvolutionNotification = true
                             }) {
                                 Text("Test Evolution").font(.subheadline)
@@ -414,6 +424,7 @@ struct HomeView: View {
                             .tint(.red)
                             
                             Button(action: {
+                                SoundService.shared.playButtonTap()
                                 if var current = ActiveCreatureStorage.shared.load() {
                                     // Give enough XP for the next evolution stage
                                     let nextStageThreshold = current.stage < 3 ? Creature.evolutionThresholds[current.stage + 1] : 19
@@ -542,6 +553,10 @@ struct HomeView: View {
                 if showEvolutionNotification {
                     EvolutionNotificationView {
                         showEvolutionNotification = false
+                        // Play evolution sound
+                        SoundService.shared.playEvolution()
+                        SoundService.shared.playNotificationFeedback(.success)
+                        
                         // Perform the actual evolution
                         let didEvolve = ActiveCreatureStorage.shared.performEvolution()
                         if didEvolve {
@@ -730,12 +745,18 @@ struct HomeView: View {
         
         // Eggs can't be fed - they don't have hunger
         if creature.stage == 0 {
+            SoundService.shared.playError()
+            SoundService.shared.playHapticFeedback(.light)
             errorMessage = "Eggs don't need feeding! Wait for your creature to hatch first."
             DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
                 errorMessage = nil
             }
             return
         }
+        
+        // Play feeding sound
+        SoundService.shared.playFeedCreature()
+        SoundService.shared.playHapticFeedback(.medium)
         
         // Update hunger before feeding
         ActiveCreatureStorage.shared.updateHunger()
@@ -753,6 +774,10 @@ struct HomeView: View {
         loadInventory()
         
         if didEvolve {
+            // Play evolution sound
+            SoundService.shared.playEvolution()
+            SoundService.shared.playNotificationFeedback(.success)
+            
             // Show evolution popup
             if let evolutionData = ActiveCreatureStorage.shared.getEvolutionInfo() {
                 evolutionInfo = evolutionData

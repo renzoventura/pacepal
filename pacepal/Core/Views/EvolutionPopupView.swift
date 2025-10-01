@@ -99,6 +99,10 @@ struct EvolutionPopupView: View {
             .opacity(animationOpacity)
         }
         .onAppear {
+            // Play evolution sound
+            SoundService.shared.playEvolution()
+            SoundService.shared.playNotificationFeedback(.success)
+            
             // Start with old stage emoji
             showNewStage = false
             

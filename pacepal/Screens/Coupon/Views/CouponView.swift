@@ -232,10 +232,17 @@ struct CouponView: View {
         guard let idx = runs.firstIndex(of: run) else { return }
         isRedeemingSingle = true
         
+        // Play redemption sound
+        SoundService.shared.playRedeemCoupon()
+        SoundService.shared.playHapticFeedback(.medium)
+        
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             runs[idx].redeemed = true
             let didEvolve = ActiveCreatureStorage.shared.applyRedeemedRun(distanceKm: run.distance)
             save()
+            
+            // Play XP gain sound
+            SoundService.shared.playGainXP()
             
             // Set success data
             totalPointsEarned = 1
@@ -251,6 +258,10 @@ struct CouponView: View {
     private func redeemAllRuns() {
         isRedeemingAll = true
         
+        // Play redemption sound
+        SoundService.shared.playRedeemCoupon()
+        SoundService.shared.playHapticFeedback(.heavy)
+        
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             var pointsEarned = 0
             var kmEarned = 0.0
@@ -264,6 +275,11 @@ struct CouponView: View {
                 kmEarned += r.distance
             }
             save()
+            
+            // Play XP gain sound for multiple redemptions
+            if pointsEarned > 0 {
+                SoundService.shared.playGainXP()
+            }
             
             // Set success data
             totalPointsEarned = pointsEarned
@@ -377,6 +393,10 @@ struct SuccessAnimationView: View {
             .opacity(animationOpacity)
         }
         .onAppear {
+            // Play success sound
+            SoundService.shared.playSuccess()
+            SoundService.shared.playHapticFeedback(.light)
+            
             withAnimation(.spring(response: 0.6, dampingFraction: 0.7)) {
                 animationScale = 1.0
                 animationOpacity = 1.0

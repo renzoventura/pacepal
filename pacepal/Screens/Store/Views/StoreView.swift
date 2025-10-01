@@ -109,6 +109,10 @@ struct StoreView: View {
             return
         }
         
+        // Play purchase sound
+        SoundService.shared.playBuyItem()
+        SoundService.shared.playHapticFeedback(.medium)
+        
         // Deduct KM Currency
         var updatedCreature = creature
         updatedCreature.kmCurrency -= item.cost
