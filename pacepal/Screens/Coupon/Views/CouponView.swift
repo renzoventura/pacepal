@@ -238,7 +238,7 @@ struct CouponView: View {
         
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             runs[idx].redeemed = true
-            let didEvolve = ActiveCreatureStorage.shared.applyRedeemedRun(distanceKm: run.distance)
+            let _ = ActiveCreatureStorage.shared.applyRedeemedRun(distanceKm: run.distance)
             save()
             
             // Play XP gain sound

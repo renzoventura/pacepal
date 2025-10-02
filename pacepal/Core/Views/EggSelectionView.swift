@@ -52,7 +52,7 @@ struct EggSelectionView: View {
     }
 
     private func createCreature() {
-        guard let selected else { return }
+        guard selected != nil else { return }
         isSaving = true
         
         // Create new active creature (egg stage)

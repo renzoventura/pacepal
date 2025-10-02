@@ -117,7 +117,7 @@ final class ActiveCreatureStorage {
     }
 
     func resetWeekIfNeeded() {
-        guard var current = load() else { return }
+        guard let current = load() else { return }
         if Date() > current.weekEnd {
             FarmStorage.shared.append(current)
             let now = Date()
@@ -224,7 +224,7 @@ final class ActiveCreatureStorage {
     
     // Get evolution info if creature can evolve
     func getEvolutionInfo() -> (oldStage: Int, newStage: Int, stageName: String)? {
-        guard var current = load() else { return nil }
+        guard let current = load() else { return nil }
         guard current.canEvolve else { return nil }
         
         let oldStage = current.stage
